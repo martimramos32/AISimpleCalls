@@ -7,6 +7,7 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.util.*
+import kotlin.math.max
 
 /**
  * AIAssistantKimi class provides an interface to communicate with Nvidia's Kimi AI models.
@@ -35,11 +36,15 @@ class AIAssistantKimi(override val properties: Properties) : AIAssistant {
                 .put("content", prompt)
         )
 
+        //Lemos os valores das properties. Se não existirem no config.properties, usamos os valores padrão
+        val temperatureValue = properties.getProperty("TEMPERATURE")?.toDoubleOrNull() ?: 1.0
+        val maxTokensValue = properties.getProperty("MAX_TOKENS")?.toIntOrNull() ?: 16384
+
         val requestBody = JSONObject()
             .put("model", model)
             .put("messages", messagesArray)
-            .put("max_tokens", 16384)
-            .put("temperature", 1.0)
+            .put("max_tokens", maxTokensValue)
+            .put("temperature", temperatureValue)
             .put("top_p", 1.0)
             .put("stream", false)
             .put("chat_template_kwargs", JSONObject().put("thinking", true))
