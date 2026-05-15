@@ -92,11 +92,72 @@ interface AIAssistant {
      * @throws Exception If API call fails or response processing fails
      */
     suspend fun processInput(input: String): String {
-        // Format the raw input using the buildPrompt method
-        val formattedPrompt = buildPrompt(input)
+        // verifica se o input começa com "sentiment:" (ignorando maiúsculas/minúsculas)
+        // este prefixo é o sinal para ativar o modo de análise de sentimento
+        return if (input.startsWith("sentiment:", ignoreCase = true)) {
 
-        // Make the API call with the formatted prompt
-        return apiCallWithBackoff(formattedPrompt)
+            // remove o prefixo "sentiment:" e os espaços em branco para obter apenas o texto a analisar
+            // ex: "sentiment: I love this!" -> "I love this!"
+            val textToAnalyze = input.removePrefix("sentiment:").trim()
+
+            // constrói um prompt específico para análise de sentimento
+            // este prompt instrui o modelo a responder apenas em formato JSON
+            val formattedPrompt = buildSentimentPrompt(textToAnalyze)
+
+            // faz a chamada à API com o prompt de sentimento
+            apiCallWithBackoff(formattedPrompt)
+        } else {
+            // modo normal — constrói um prompt amigável com as instruções do assistente
+            val formattedPrompt = buildPrompt(input)
+
+            // faz a chamada à API com o prompt normal
+            apiCallWithBackoff(formattedPrompt)
+        }
+    }
+
+    /**
+     * Constrói um prompt específico para análise de sentimento.
+     * Instrui o modelo a avaliar o sentimento do texto numa escala de 7 pontos
+     * e a devolver o resultado APENAS em formato JSON
+     *
+     * A escala de sentimento é:
+     * 1 - Very Negative
+     * 2 - Negative
+     * 3 - Slightly Negative
+     * 4 - Neutral
+     * 5 - Slightly Positive
+     * 6 - Positive
+     * 7 - Very Positive
+     *
+     * O formato da resposta esperado é:
+     * {
+     *   "rating": <número de 1 a 7>,
+     *   "justification": "<breve justificação do rating dado>"
+     * }
+     *
+     * @param input O texto a analisar
+     * @return Um prompt formatado com instruções para análise de sentimento
+     */
+    fun buildSentimentPrompt(input: String): String {
+        return """
+            You are a sentiment analysis assistant.
+            Analyze the sentiment of the following text and rate it on a 7-point scale:
+            1 - Very Negative
+            2 - Negative
+            3 - Slightly Negative
+            4 - Neutral
+            5 - Slightly Positive
+            6 - Positive
+            7 - Very Positive
+            
+            You MUST respond ONLY with a JSON object in this exact format, with no extra text:
+            {
+                "rating": <number from 1 to 7>,
+                "justification": "<brief explanation>"
+            }
+            
+            The text to analyze is: "$input"
+            """.trimIndent()
     }
 
     /**
